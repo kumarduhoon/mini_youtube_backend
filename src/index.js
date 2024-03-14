@@ -1,9 +1,26 @@
-import express from "express"
-
-const app = express();
-
-app.get("/", (req, res) => {
-    res.send("My first server")
+import dotenv from "dotenv";
+import connectDB from "./db/index.js";
+dotenv.config({
+    path: "./env"
 })
 
-app.listen(2000, () => (console.log("server is ready to work")))
+connectDB()
+
+//import express from "express"
+// const app = express()
+
+//     ; (async () => {
+//         try {
+//             await mongoose.connect(`${process.env.DATABASE_URI}/${DB_NAME}`)
+//             app.on("error", (error) => {
+//                 console.log("Error :", error)
+//                 throw error
+//             })
+//             app.listen(process.env.PORT, () => {
+//                 console.log("I am listening on " + process.env.PORT)
+//             })
+//         } catch (error) {
+//             console.error("Error")
+//             throw error
+//         }
+//     })()

@@ -12,7 +12,6 @@ connectDB()
             console.error("some is wrong")
             throw error
         })
-
         app.listen(port, () => (`server is running on the ${port}`))
     })
     .catch((err) => {

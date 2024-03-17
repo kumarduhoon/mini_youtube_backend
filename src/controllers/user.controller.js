@@ -27,7 +27,7 @@ const registerUser = asyncHandler(async (req, res) => {
     }
 
     //  3. check if username and email is already exit
-    const userExits = User.findOne({
+    const userExits = await User.findOne({
         $or: [{ username }, { email }]
     })
 
@@ -37,22 +37,27 @@ const registerUser = asyncHandler(async (req, res) => {
 
     // 4. avator image
     const avatorLocalPath = req.files?.avator[0]?.path
-    const coverLocalPath = req.files?.coverImage[0]?.path
+    // const coverLocalPath = req.files?.coverImage[0]?.path
 
+    let coverLocalPath;
+
+    if (req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0) {
+        coverLocalPath = req.files.coverImage[0].path
+    }
 
     // 5. avator image is available or Not 
 
     if (!avatorLocalPath) {
-        throw new ApiError(400, "Avator file is required")
+        throw new ApiError(400, "myAvator file is required")
     }
 
     // 6. upload image on Cloudinary 
     const avator = await uploadOnCloudinary(avatorLocalPath)
     const coverImage = await uploadOnCloudinary(coverLocalPath)
-
+    console.log(avator, "my avator")
     // check avator is avaialbe or not
 
-    if (avator) {
+    if (!avator) {
         throw new ApiError(400, "Avator file is required")
     }
 

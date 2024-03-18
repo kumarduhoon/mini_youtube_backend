@@ -109,8 +109,10 @@ const loginUser = asyncHandler(async (req, res) => {
        6. sent the token in cookies
        7. then send the repose to user   */
 
-    const { email, username, password } = req.body;
-
+    const { email, username, password } = req.body
+    console.log(req)
+    console.log(req.body)
+    console.log(email)
     if (!(email || username)) {
         throw new ApiError(400, "email or user required")
     }

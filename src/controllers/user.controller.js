@@ -153,6 +153,7 @@ const loginUser = asyncHandler(async (req, res) => {
 
 })
 
+//  when user logged in
 const logoutUser = asyncHandler(async (req, res) => {
     await User.findByIdAndUpdate(req.user._id, {
         $unset: {
@@ -225,5 +226,181 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     }
 })
 
+//  when user logged in
+const changeCurrentPassword = asyncHandler(async (req, res) => {
+    const { oldPassword, newPassword } = req.body
 
-export { registerUser, loginUser, logoutUser, refreshAccessToken }
+    const user = await User.findById(req.user?._id)
+
+    const isPasswordCorrect = await user.isPasswordCorrect(oldPassword)
+
+    if (!isPasswordCorrect) {
+        throw new ApiError(400, "invalid password")
+    }
+
+    user.password = newPassword
+    user.save({ validateBeforeSave: false })
+
+    return res.status(200)
+        .json(new ApiResponse(200, {}, "Password change Successfully"))
+
+})
+
+//  when user logged in
+const getCurrentUser = asyncHandler(async (req, res) => {
+    const currentUser = req.user
+    if (!currentUser) {
+        throw new ApiError(400, "bad request")
+    }
+    return res.status(200).json(new ApiResponse(200, currentUser, "user got successfully"))
+})
+
+const changeUserDetails = asyncHandler(async (req, res) => {
+    const { fullname, email } = req.body;
+    if (!fullname || !email) {
+        throw new ApiError(400, "All field are required")
+    }
+    const user = await User.findByIdAndUpdate(req.user?._id, {
+        $set: {
+            fullname, email
+        }
+    }, {
+        new: true
+    }).select("-password")
+    if (!user) {
+        throw new ApiError(400, "something is wrong")
+    }
+    return res.status(200)
+        .json(new ApiResponse(200, user, "User details changed successfully "))
+})
+
+
+const updateAvatorImage = asyncHandler(async (req, res) => {
+    const avatorLocalPath = req.file?.path
+    if (!avatorLocalPath) {
+        throw new ApiError(400, "Avator is missing")
+    }
+    const avator = await uploadOnCloudinary(avatorLocalPath)
+    if (!avator.url) {
+        throw new ApiError(400, "Error while uploading the image")
+    }
+    const user = await User.findByIdAndUpdate(req.user?._id, {
+        $set: {
+            avator: avator.url
+        }
+    }, {
+        new: true
+    }).select("-password")
+
+    return res.status(200)
+        .json(new ApiResponse(200, user, "Avator changed successfully"))
+})
+
+
+const updatecoverImage = asyncHandler(async (req, res) => {
+    const coverImageLocalPath = req.file?.path
+    if (!coverImageLocalPath) {
+        throw new ApiError(400, "Cover Image is missing")
+    }
+    const coverImage = await uploadOnCloudinary(coverImageLocalPath)
+    if (!coverImage.url) {
+        throw new ApiError(400, "Error while uploading the image")
+    }
+    const user = await User.findByIdAndUpdate(req.user?._id, {
+        $set: {
+            coverImage: coverImage.url
+        }
+    }, {
+        new: true
+    }).select("-password")
+
+    return res.status(200)
+        .json(new ApiResponse(200, user, "Cover Image changed successfully"))
+})
+
+
+
+// how to get all the user info user the join or aggregation pipeline
+
+
+
+const getUserChannelProfile = asyncHandler(async (req, res) => {
+    const { username } = req.params
+
+    if (!username?.trim()) {
+        throw new ApiError(400, "user does not exists")
+    }
+    // aggregation pipeline for join the table
+    const channel = await User.aggregate([
+        {  // find the user by matching the username
+            $match: {
+                username: username?.toLowerCase()
+            }
+        }, // now find the subscribtion  
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "channel",
+                as: "my_subscriber"
+            }
+        }, // how many channel i subscriber
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id", // jis ka ref diya 
+                foreignField: "subscriber", // foreignfield me jis me ref  diya hai,
+                as: "my_subscribed_channel"
+            }
+        },
+        {
+            $addFields: {
+                my_subscriber_count: {
+                    $size: "$my_subscriber"
+                },
+                my_subscribed_channel_count: {
+                    $size: "$my_subscribed_channel"
+                },
+                isSubscribed: {
+                    $cond: {
+                        if: { $in: [req.user?._id, "$my_subscriber.subscriber"] },
+                        then: true,
+                        else: false
+                    }
+                }
+            }
+        },
+        {
+            $project: {
+                fullname: 1,
+                username: 1,
+                my_subscriber_count: 1,
+                my_subscribed_channel_count: 1,
+                isSubscribed: 1,
+                avator: 1,
+                coverImage: 1
+            }
+        }
+    ])
+
+    if (!channel?.length) {
+        throw new ApiError(404, "channel does not exists")
+    }
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, channel[0], "User channel fetched successfully"))
+})
+
+export {
+    registerUser,
+    loginUser,
+    logoutUser,
+    refreshAccessToken,
+    changeCurrentPassword,
+    getCurrentUser,
+    changeUserDetails,
+    updateAvatorImage,
+    updatecoverImage,
+    getUserChannelProfile
+}

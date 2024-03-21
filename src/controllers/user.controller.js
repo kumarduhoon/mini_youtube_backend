@@ -3,6 +3,7 @@ import { ApiError } from "../utils/apiError.js"
 import { User } from "../models/user.model.js"
 import { uploadOnCloudinary } from "../utils/cloudinary.util.js"
 import { ApiResponse } from "../utils/apiResponse.js"
+import mongoose from "mongoose"
 
 
 const generateAccessAndRefreshToken = async (userId) => {
@@ -392,6 +393,51 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
             new ApiResponse(200, channel[0], "User channel fetched successfully"))
 })
 
+const getWatchHistory = asyncHandler(async (req, res) => {
+    const user = User.aggregate([
+        {
+            $match: {
+                _id: new mongoose.Types.ObjectId(req.user?._id)
+            }
+        },
+        {
+            $lookup: {
+                from: "vidoes", // kha se kru look up mean kon se mode se look kru for example m abhi user hu to jis ka ref diya hai user m uska from m use hoga
+                localField: "watchHistory", // jis m video or " in gernal filed ref hoga" ka ref hoga 
+                foreignField: "_id",
+                as: "watch_history",
+                pipeline: [
+                    {
+                        $lookup: {
+                            from: "users", // make name in lower case and parular as per mogones rule
+                            localField: "owner",
+                            foreignField: "_id",
+                            as: "video_owner",
+                            pipeline: [{
+                                $project: {
+                                    fullname: 1,
+                                    username: 1,
+                                    avator: 1
+                                }
+                            }]
+                        }
+                    },
+                    //we get the first element from the array pipeline
+                    {
+                        $addFields: {
+                            owner: {
+                                $first: "$video_owner"
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    ])
+    return res.status(200)
+        .json(new ApiResponse(200, user[0]?.watchHistory, "get all the histroy sucessully"))
+})
+
 export {
     registerUser,
     loginUser,
@@ -402,5 +448,6 @@ export {
     changeUserDetails,
     updateAvatorImage,
     updatecoverImage,
-    getUserChannelProfile
+    getUserChannelProfile,
+    getWatchHistory
 }
